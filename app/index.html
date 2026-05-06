@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WodConnect → Wodbook Import</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #111; color: #fff; min-height: 100vh; padding: 24px 20px; max-width: 1100px; margin: 0 auto; }
+h1 { font-size: 22px; font-weight: 800; color: #a3ff00; letter-spacing: 1px; margin-bottom: 2px; }
+.subtitle { font-size: 13px; color: #666; margin-bottom: 28px; }
+.card { background: #1a1a1a; border: 1px solid #252525; border-radius: 14px; padding: 22px; margin-bottom: 16px; }
+label { font-size: 10px; font-weight: 700; color: #666; display: block; margin-bottom: 5px; letter-spacing: .6px; }
+input[type=email], input[type=password] {
+  width: 100%; background: #242424; border: 1px solid #2e2e2e;
+  border-radius: 9px; padding: 11px 13px; color: #fff; font-size: 15px;
+  outline: none; transition: border-color .15s;
+}
+input:focus { border-color: #a3ff00; }
+.btn {
+  background: #a3ff00; border: none; border-radius: 9px; padding: 11px 22px;
+  font-size: 12px; font-weight: 800; letter-spacing: .6px; color: #000;
+  cursor: pointer; transition: opacity .15s;
+}
+.btn:hover { opacity: .88; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-ghost { background: transparent; border: 1px solid #2e2e2e; color: #aaa; }
+.btn-ghost:hover { border-color: #555; color: #fff; opacity: 1; }
+.err { color: #ff6b6b; font-size: 12px; margin-top: 8px; }
+.hidden { display: none !important; }
+
+/* File drop zone */
+.drop-zone {
+  border: 2px dashed #2e2e2e; border-radius: 12px; padding: 36px 20px;
+  text-align: center; cursor: pointer; transition: border-color .15s;
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: #a3ff00; }
+.drop-zone p { font-size: 15px; color: #ccc; margin: 10px 0 4px; }
+.drop-zone small { font-size: 11px; color: #555; }
+
+/* Summary stats */
+.stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.stat { background: #1a1a1a; border: 1px solid #252525; border-radius: 10px; padding: 12px 18px; min-width: 90px; }
+.stat-n { font-size: 26px; font-weight: 800; color: #a3ff00; line-height: 1; }
+.stat-n.dim { color: #555; }
+.stat-n.warn { color: #ff6b35; }
+.stat-l { font-size: 10px; color: #666; margin-top: 3px; letter-spacing: .3px; }
+
+/* Review table */
+.table-wrap { overflow-x: auto; border: 1px solid #252525; border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 700px; }
+thead { position: sticky; top: 0; z-index: 1; }
+th {
+  text-align: left; padding: 10px 12px; font-size: 10px; font-weight: 700;
+  color: #555; letter-spacing: .5px; background: #151515;
+  border-bottom: 1px solid #252525;
+}
+td { padding: 10px 12px; border-bottom: 1px solid #1e1e1e; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #1d1d1d; }
+tr.row-worse td { opacity: .55; }
+
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 5px;
+  font-size: 10px; font-weight: 700; letter-spacing: .4px; white-space: nowrap;
+}
+.b-new    { background: rgba(163,255,0,.13); color: #a3ff00; }
+.b-better { background: rgba(163,255,0,.08); color: #7ec800; }
+.b-same   { background: rgba(255,255,255,.07); color: #aaa; }
+.b-worse  { background: rgba(255,68,68,.10);  color: #ff6b6b; }
+.b-custom   { background: rgba(255,107,53,.13); color: #ff6b35; }
+.b-imported { background: rgba(163,255,0,.18); color: #a3ff00; border: 1px solid rgba(163,255,0,.3); }
+
+.move-name { font-size: 14px; font-weight: 600; color: #fff; line-height: 1.3; }
+.move-sub  { font-size: 10px; color: #666; margin-top: 1px; }
+
+.actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+#import-status { font-size: 13px; color: #666; }
+
+.user-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #1a1a1a; border: 1px solid #252525; border-radius: 20px;
+  padding: 6px 14px; font-size: 12px; color: #888; margin-bottom: 18px;
+}
+.user-pill .dot { width: 8px; height: 8px; background: #a3ff00; border-radius: 50%; flex-shrink: 0; }
+
+.filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.filter-btn { background: #1a1a1a; border: 1px solid #252525; border-radius: 6px; padding: 5px 12px; font-size: 11px; color: #888; cursor: pointer; }
+.filter-btn.active { background: rgba(163,255,0,.1); border-color: rgba(163,255,0,.3); color: #a3ff00; }
+
+#auth-loading { color: #444; font-size: 13px; padding: 12px 0; }
+</style>
+</head>
+<body>
+
+<h1>WODCONNECT → WODBOOK</h1>
+<p class="subtitle">Tuo ennätykset journal.xlsx -tiedostosta suoraan Wodbook-profiiliisi</p>
+
+<div id="user-bar" class="hidden" style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+  <div class="user-pill" style="margin-bottom:0"><span class="dot"></span><span id="user-email-label"></span></div>
+  <button class="btn btn-ghost" style="padding:6px 14px;font-size:11px" onclick="window.doSignOut()">Kirjaudu ulos</button>
+</div>
+
+<div id="auth-loading">Ladataan…</div>
+
+<!-- Step 1: Login -->
+<div class="card hidden" id="step-login">
+  <div style="font-size:11px;font-weight:700;color:#a3ff00;letter-spacing:.6px;margin-bottom:16px">KIRJAUDU SISÄÄN</div>
+  <div style="display:flex;flex-direction:column;gap:12px;max-width:340px">
+    <div>
+      <label>SÄHKÖPOSTI</label>
+      <input type="email" id="inp-email" placeholder="sinun@email.fi" autocomplete="email">
+    </div>
+    <div>
+      <label>SALASANA</label>
+      <input type="password" id="inp-pw" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn" id="btn-login" onclick="doLogin()">Kirjaudu sisään</button>
+    <div class="err hidden" id="login-err"></div>
+  </div>
+</div>
+
+<!-- Step 2: File pick -->
+<div class="hidden" id="step-file">
+  <div class="card">
+    <div style="font-size:11px;font-weight:700;color:#a3ff00;letter-spacing:.6px;margin-bottom:16px">VALITSE TIEDOSTO</div>
+    <label class="drop-zone" for="file-input" id="drop-zone">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.5">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <p>Valitse journal.xlsx tai vedä tiedosto tähän</p>
+      <small>Tuettu: .xlsx ja .csv (WodConnect-export)</small>
+    </label>
+    <input type="file" id="file-input" accept=".xlsx,.csv" style="display:none" onchange="handleFile(event)">
+    <div class="err hidden" id="file-err"></div>
+  </div>
+</div>
+
+<!-- Step 3: Review -->
+<div class="hidden" id="step-review">
+  <div class="stats" id="stats-row"></div>
+
+  <div class="filter-bar">
+    <div style="font-size:11px;font-weight:700;color:#a3ff00;letter-spacing:.6px;margin-right:4px">ESIKATSELU</div>
+    <button class="filter-btn active" id="flt-all"    onclick="setFilter('all')">Kaikki</button>
+    <button class="filter-btn"        id="flt-new"    onclick="setFilter('new')">Uudet</button>
+    <button class="filter-btn"        id="flt-better" onclick="setFilter('better')">Paremmat</button>
+    <button class="filter-btn"        id="flt-worse"  onclick="setFilter('worse')">Huonommat</button>
+    <button class="filter-btn"        id="flt-custom" onclick="setFilter('custom')">Tunnistamattomat</button>
+    <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:#888;cursor:pointer;letter-spacing:0;font-weight:400">
+      <input type="checkbox" id="chk-overwrite"> Korvaa kaikki (myös huonommat)
+    </label>
+  </div>
+  <div class="filter-bar" style="margin-top:-6px">
+    <div style="font-size:10px;font-weight:700;color:#555;letter-spacing:.6px;margin-right:4px">KATEGORIA</div>
+    <button class="filter-btn" id="flt-cat-strength"   onclick="setFilter('cat-strength')">🏋️ Voima</button>
+    <button class="filter-btn" id="flt-cat-gymnastics" onclick="setFilter('cat-gymnastics')">🤸 Gymnastics</button>
+    <button class="filter-btn" id="flt-cat-benchmark"  onclick="setFilter('cat-benchmark')">⏱ Benchmark</button>
+    <button class="filter-btn" id="flt-cat-other"      onclick="setFilter('cat-other')">📋 Muut</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:36px">
+            <input type="checkbox" id="chk-all" checked onchange="toggleAll(this.checked)" title="Valitse kaikki">
+          </th>
+          <th>LIIKE</th>
+          <th>KATEGORIA</th>
+          <th>TYYPPI</th>
+          <th>PARAS TULOS (WodConnect)</th>
+          <th>PVM</th>
+          <th>NYKYINEN WODBOOK PR</th>
+          <th>TILA</th>
+        </tr>
+      </thead>
+      <tbody id="preview-body"></tbody>
+    </table>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="btn-import" onclick="doImport()">Tuo valitut</button>
+    <button class="btn btn-ghost" onclick="backToFile()">← Vaihda tiedosto</button>
+    <div id="import-status"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp }
+  from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import { initializeFirestore, persistentLocalCache, doc, getDoc, setDoc, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+
+// ── Firebase (same project as wodbook.fi) ──
+const app = initializeApp({
+  apiKey:            'AIzaSyC7NAGjrPUG8fjxvGI0EjLSUO5_tNfN-WQ',
+  authDomain:        'wodbook-4a6ac.firebaseapp.com',
+  projectId:         'wodbook-4a6ac',
+  storageBucket:     'wodbook-4a6ac.firebasestorage.app',
+  messagingSenderId: '48961069729',
+  appId:             '1:48961069729:web:38de4d2b49edc68ee186e0',
+});
+const db   = initializeFirestore(app, { localCache: persistentLocalCache() });
+const auth = getAuth(app);
+
+// ── Known movements (mirrors live MOVEMENTS constant) ──
+const MOVEMENTS = {
+  strength: {
+    label: 'Voima', icon: '🏋️',
+    moves: ['Back Squat','Front Squat','Overhead Squat','Deadlift','Romanian Deadlift',
+            'Bench Press','Dual DB Bench Press','Strict Press','Push Press','Push Jerk','Split Jerk',
+            'Snatch','Clean','Squat Clean','Clean & Jerk','Power Snatch','Power Clean',
+            'Hang Power Clean','Hang Squat Clean','Hang Power Snatch','Thruster',
+            'Single Arm DB Row','Row (1RM)'],
+  },
+  gymnastics: {
+    label: 'Gymnastics', icon: '🤸',
+    moves: ['Pull-up (max)','Chest-to-Bar (max)','Muscle-up (max)','Ring Muscle-up (max)',
+            'Handstand Push-up (max)','Toes-to-Bar (max)','Dip (max)','L-sit (sek)'],
+  },
+  benchmark: {
+    label: 'Benchmark', icon: '⏱',
+    moves: ['Fran','Helen','Grace','Isabel','Linda','Cindy (kierrokset)',
+            'Murph','Annie','Barbara','Nancy','Karen','Jackie',
+            'Diane','Desire','Fight Gone Bad','Grettel','Ellen','Kelly','Karabel'],
+  },
+};
+
+// Flat list sorted longest-first so prefix matches prefer the most-specific move
+const ALL_KNOWN_MOVES = Object.values(MOVEMENTS).flatMap(c => c.moves)
+  .sort((a, b) => b.length - a.length);
+
+// Reverse lookup: move name → category key
+const MOVE_TO_CAT = {};
+for (const [cat, data] of Object.entries(MOVEMENTS))
+  data.moves.forEach(m => { MOVE_TO_CAT[m] = cat; });
+
+function getCategory(move) { return MOVE_TO_CAT[move] || 'other'; }
+
+// ── Alias table: common abbreviations and WodConnect naming variants ──
+const ALIASES = {
+  // Back Squat
+  'squat':                  'Back Squat',
+  // Overhead Squat
+  'ohs':                    'Overhead Squat',
+  // Romanian Deadlift
+  'rdl':                    'Romanian Deadlift',
+  // Strict Press / Overhead Press
+  'overhead press':         'Strict Press',
+  'shoulder press':         'Strict Press',
+  'ohp':                    'Strict Press',
+  'press':                  'Strict Press',
+  // Jerk
+  'jerk':                   'Push Jerk',
+  // Clean & Jerk variants
+  'clean and jerk':         'Clean & Jerk',
+  'clean jerk':             'Clean & Jerk',
+  // Gymnastics abbreviations
+  'pullup':                 'Pull-up (max)',
+  'pullups':                'Pull-up (max)',
+  'pull up':                'Pull-up (max)',
+  'pull ups':               'Pull-up (max)',
+  'pull-up':                'Pull-up (max)',
+  'pull-ups':               'Pull-up (max)',
+  'kipping pull-up':        'Pull-up (max)',
+  'kipping pullup':         'Pull-up (max)',
+  'c2b':                    'Chest-to-Bar (max)',
+  'chest to bar':           'Chest-to-Bar (max)',
+  'chest-to-bar':           'Chest-to-Bar (max)',
+  'muscle up':              'Muscle-up (max)',
+  'muscle-up':              'Muscle-up (max)',
+  'bar muscle up':          'Muscle-up (max)',
+  'bar muscle-up':          'Muscle-up (max)',
+  'ring muscle up':         'Ring Muscle-up (max)',
+  'ring muscle-up':         'Ring Muscle-up (max)',
+  'hspu':                   'Handstand Push-up (max)',
+  'handstand pushup':       'Handstand Push-up (max)',
+  'handstand push-up':      'Handstand Push-up (max)',
+  'handstand push up':      'Handstand Push-up (max)',
+  't2b':                    'Toes-to-Bar (max)',
+  'toes to bar':            'Toes-to-Bar (max)',
+  'toes-to-bar':            'Toes-to-Bar (max)',
+  'dips':                   'Dip (max)',
+  'l-sit':                  'L-sit (sek)',
+  'l sit':                  'L-sit (sek)',
+  // Row
+  'rowing':                 'Row (1RM)',
+  // Benchmark variant spellings
+  'fight gone bad':         'Fight Gone Bad',
+  'cindy':                  'Cindy (kierrokset)',
+};
+
+// ── State ──
+let currentUser  = null;
+let existingPRs  = {};
+let importData   = [];  // [{move, result, rec, existing, isCustom, status, include}]
+let currentFilter = 'all';
+
+// ── Auth ──
+onAuthStateChanged(auth, async fbUser => {
+  hide('auth-loading');
+  if (fbUser) {
+    currentUser = fbUser;
+    show('step-file');
+    show('danger-zone');
+    show('user-bar');
+    hide('step-login');
+    document.getElementById('user-email-label').textContent = fbUser.email;
+    try {
+      const snap = await getDoc(doc(db, 'users', fbUser.uid, 'personalRecords', 'records'));
+      existingPRs = snap.exists() ? snap.data() : {};
+    } catch (e) {
+      console.warn('PR fetch failed:', e.code);
+    }
+  } else {
+    currentUser = null;
+    show('step-login');
+    hide('step-file');
+    hide('step-review');
+    hide('danger-zone');
+    hide('user-bar');
+  }
+
+});
+
+window.doLogin = async () => {
+  const email = document.getElementById('inp-email').value.trim();
+  const pw    = document.getElementById('inp-pw').value;
+  const btn   = document.getElementById('btn-login');
+  const err   = document.getElementById('login-err');
+  hide('login-err');
+  btn.disabled = true;
+  btn.textContent = 'Kirjaudutaan…';
+  try {
+    await signInWithEmailAndPassword(auth, email, pw);
+  } catch (e) {
+    const MSGS = {
+      'auth/user-not-found':    'Käyttäjää ei löydy',
+      'auth/wrong-password':    'Väärä salasana',
+      'auth/invalid-credential':'Väärä sähköposti tai salasana',
+      'auth/invalid-email':     'Tarkista sähköpostiosoite',
+      'auth/too-many-requests': 'Liikaa kirjautumisyrityksiä — odota hetki',
+    };
+    err.textContent = MSGS[e.code] || e.message;
+    show('login-err');
+    btn.disabled = false;
+    btn.textContent = 'Kirjaudu sisään';
+  }
+};
+
+window.doSignOut = () => signOut(auth);
+
+// ── Drag-and-drop on drop zone ──
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+
+window.handleFile = e => { const f = e.target.files[0]; if (f) processFile(f); };
+
+// ── File parsing ──
+function processFile(file) {
+  hide('file-err');
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = new Uint8Array(ev.target.result);
+      const wb   = XLSX.read(data, { type: 'array', cellDates: true });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!rows.length) throw new Error('Tiedosto on tyhjä tai väärässä muodossa');
+      if (!('Workout name' in rows[0])) throw new Error('Sarake "Workout name" puuttuu — onko tämä WodConnect-export?');
+      buildImportData(rows);
+    } catch (err) {
+      document.getElementById('file-err').textContent = 'Virhe: ' + err.message;
+      show('file-err');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Name normalisation ──
+function normaliseName(raw) {
+  return raw
+    .replace(/\s*\/\/\s*.*/i,             '')  // "... // WOD" → ""
+    .replace(/\s+Progression\s+\d+\/\d+/i, '')  // "... Progression 1/4" → ""
+    .replace(/\s+week\s+\d+.*/i,           '')  // "... week 3" → ""
+    .replace(/\s+\d+\/\d+$/,               '')  // "... 1/4" at end → ""
+    .replace(/\s+\d{1,2}RM$/i,             '')  // "Back Squat 5RM" → "Back Squat"
+    .replace(/\s+@\s*\d+%.*$/i,            '')  // "Deadlift @ 80%" → "Deadlift"
+    .trim();
+}
+
+function extractReps(rawName) {
+  // "5RM" or "3 @ 80%" patterns in the original name
+  const m = rawName.match(/\b(\d{1,2})RM\b/i) || rawName.match(/\b(\d{1,2})\s*@\s*\d+%/);
+  return m ? parseInt(m[1]) : 1;
+}
+
+// Strip qualifier words used only in Wodbook display names, then tokenise
+function matchTokens(str) {
+  return str.toLowerCase()
+    .replace(/\s*\((max|sek|kierrokset)\)/gi, '')  // drop (max), (sek), (kierrokset)
+    .replace(/[^a-zäöå0-9]+/gi, ' ')               // punctuation → space
+    .trim().split(/\s+/).filter(w => w.length >= 2);
+}
+
+// Word-containment match: all words of a known move must appear in normalised tokens.
+// Sorted longest-first so "Hang Power Clean" beats "Power Clean" beats "Clean".
+function wordContainMatch(normTokens) {
+  for (const known of ALL_KNOWN_MOVES) {
+    const kTokens = matchTokens(known);
+    if (kTokens.length === 0) continue;
+    if (kTokens.every(kw => normTokens.some(nw => nw === kw || nw.startsWith(kw)))) {
+      return { move: known, isCustom: false, strong: true };
+    }
+  }
+  return null;
+}
+
+function matchKnown(normalised) {
+  const nl = normalised.toLowerCase().trim();
+
+  // Tier 1 — exact (case-insensitive)
+  const exact = ALL_KNOWN_MOVES.find(m => m.toLowerCase() === nl);
+  if (exact) return { move: exact, isCustom: false, strong: true };
+
+  // Tier 1b — base exact: strip display-only qualifiers like (max)/(sek)/(kierrokset) from known moves
+  const baseExact = ALL_KNOWN_MOVES.find(m => {
+    const base = m.toLowerCase()
+      .replace(/\s*\((max|sek|kierrokset)\)\s*$/i, '')
+      .trim();
+    return base === nl && base !== m.toLowerCase(); // only fires when qualifier was actually stripped
+  });
+  if (baseExact) return { move: baseExact, isCustom: false, strong: true };
+
+  // Tier 2 — alias table (abbreviations and common variants)
+  const aliased = ALIASES[nl];
+  if (aliased) return { move: aliased, isCustom: false, strong: true };
+
+  // Tier 3 — prefix: normalised starts with a known move name
+  const prefix = ALL_KNOWN_MOVES.find(m => nl.startsWith(m.toLowerCase()));
+  if (prefix) return { move: prefix, isCustom: false, strong: true };
+
+  // Tier 4 — word containment: all words of a known move appear in normalised
+  const tokens = matchTokens(normalised);
+  const wc = wordContainMatch(tokens);
+  if (wc) return wc;
+
+  // Tier 5 — suffix (weak): a known move starts with normalised (min 5 chars to avoid noise)
+  if (nl.length >= 5) {
+    const sfx = ALL_KNOWN_MOVES.find(m => m.toLowerCase().startsWith(nl));
+    if (sfx) return { move: sfx, isCustom: false, strong: false };
+  }
+
+  return { move: normalised, isCustom: true, strong: false };
+}
+
+// Try workout name first; if only a weak match, also try the description's first line.
+// "BACK SQUAT 1RM\n\nIn 15 minutes..." → first line "BACK SQUAT 1RM" → normalises to "Back Squat".
+function resolveName(rawName, rawDesc) {
+  const normName = normaliseName(rawName);
+  const matchName = normName ? matchKnown(normName) : null;
+  if (matchName?.strong) return { ...matchName, normUsed: normName, repsSource: rawName };
+
+  // Weak or no match from name — try first non-empty line of description
+  const descLine = String(rawDesc || '').split('\n').map(s => s.trim()).find(s => s.length > 2) || '';
+  if (descLine) {
+    const normDesc  = normaliseName(descLine);
+    const matchDesc = normDesc ? matchKnown(normDesc) : null;
+    if (matchDesc?.strong) return { ...matchDesc, normUsed: normDesc, repsSource: descLine };
+  }
+
+  // Fall back to whatever the name gave us
+  if (matchName) return { ...matchName, normUsed: normName, repsSource: rawName };
+  return { move: rawName, isCustom: true, strong: false, normUsed: rawName, repsSource: rawName };
+}
+
+// ── Date parsing (avoids UTC shift) ──
+function parseDate(raw) {
+  if (!raw) return todayStr();
+  if (typeof raw === 'string') return raw.slice(0, 10);
+  if (raw instanceof Date) {
+    const y = raw.getFullYear();
+    const m = String(raw.getMonth() + 1).padStart(2, '0');
+    const d = String(raw.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return todayStr();
+}
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ── Result parsing ──
+function parseRow(row) {
+  const rtype = String(row['Result type'] || '').trim();
+  const rval  = String(row['Result']      || '').trim();
+  const date  = parseDate(row['Happened at']);
+
+  if (rtype === 'No-result') return null;
+  if (rtype === 'Other' && rval.toUpperCase() === 'DONE') return null;
+
+  if (rtype === '-' || rtype === 'Weight') {
+    let kg, nums;
+    if (rtype === '-') {
+      nums = rval.replace(/\s*kg\s*/gi, '').split(',')
+        .map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0 && n < 500);
+      if (!nums.length) return null;
+      kg = Math.max(...nums);
+    } else {
+      kg = parseFloat(rval);
+      if (!kg || kg <= 0) return null;
+      nums = [kg];
+    }
+    return { type: 'strength', kg, nums, date };
+  }
+  if (rtype === 'Time') {
+    const parts = rval.split(':').map(s => parseFloat(s));
+    let totalSec, timeStr;
+    if (parts.length === 1 && !isNaN(parts[0]) && parts[0] > 0) {
+      // Plain seconds (e.g. "287")
+      totalSec = Math.round(parts[0]);
+      const m = Math.floor(totalSec / 60), s = totalSec % 60;
+      timeStr = `${m}:${String(s).padStart(2, '0')}`;
+    } else if (parts.length === 2 && !parts.some(isNaN)) {
+      // MM:SS
+      totalSec = Math.round(parts[0] * 60 + parts[1]);
+      timeStr = rval;
+    } else if (parts.length === 3 && !parts.some(isNaN)) {
+      // HH:MM:SS
+      totalSec = Math.round(parts[0] * 3600 + parts[1] * 60 + parts[2]);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      timeStr = h > 0
+        ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+        : `${m}:${String(s).padStart(2,'0')}`;
+    } else {
+      return null;
+    }
+    if (totalSec <= 0) return null;
+    return { type: 'time', totalSec, timeStr, date };
+  }
+  if (rtype === 'AMRAP') {
+    const reps = parseInt(rval);
+    if (!reps || reps <= 0) return null;
+    return { type: 'reps', reps, date };
+  }
+  if (rtype === 'Other') {
+    if (!rval) return null;
+    // Time-formatted value stored under "Other" (e.g. Grace → "5:09")
+    const tp = rval.split(':').map(Number);
+    if (tp.length === 2 && !tp.some(isNaN) && tp[1] >= 0 && tp[1] < 60) {
+      const totalSec = tp[0] * 60 + tp[1];
+      if (totalSec > 0) return { type: 'time', totalSec, timeStr: rval, date };
+    }
+    return { type: 'other', notes: rval, date };
+  }
+  return null;
+}
+
+// Try to pair multiple weights with a rep scheme from the description.
+// Returns {reps: bestKg, ...} or null.
+//
+// PATH 1 — dash scheme:    "4-4-3-2-2" + [80,85,90,95,100] → {4:85,3:90,2:100}
+// PATH 2 — set lines:      "Set 1-2: 5 reps / Set 3-4: 3 reps" → per-set reps map
+// PATH 3 — single "N reps @%": all sets have same rep count
+function tryPairRepSets(nums, searchText) {
+  if (!nums || nums.length < 2) return null;
+
+  // PATH 1 – dash-separated scheme (e.g. "4-4-3-2-2", "5-3-1")
+  for (const m of searchText.matchAll(/\b(\d+(?:-\d+)+)\b/g)) {
+    const scheme = m[1].split('-').map(Number);
+    if (!scheme.every(n => n >= 1 && n <= 30)) continue;
+    if (scheme.length === nums.length) {
+      const result = {};
+      scheme.forEach((reps, i) => {
+        if (result[reps] === undefined || nums[i] > result[reps]) result[reps] = nums[i];
+      });
+      return result;
+    }
+    const uniqueReps = [...new Set(scheme)];
+    const uniqueNums = [...new Set(nums)];
+    if (uniqueReps.length === uniqueNums.length && uniqueReps.length > 1) {
+      return Object.fromEntries(uniqueReps.map((r, i) => [r, uniqueNums[i]]));
+    }
+  }
+
+  // PATH 2 – "Set X-Y: N reps" or "Set X: N reps" (set-numbered descriptions)
+  const repsPerSet = new Array(nums.length).fill(null);
+  let anySet = false;
+  // Range form: "Set 1-2: 5 reps" (also "Setit" and en-dash)
+  for (const m of searchText.matchAll(/Set(?:it)?\s+(\d+)[-–](\d+)\s*:\s*(\d+)\s+reps?/gi)) {
+    const from = parseInt(m[1]) - 1, to = parseInt(m[2]) - 1, reps = parseInt(m[3]);
+    if (reps >= 1 && reps <= 30)
+      for (let i = from; i <= to && i < repsPerSet.length; i++) { repsPerSet[i] = reps; anySet = true; }
+  }
+  // Single form: "Set 1: 8 reps" (don't overwrite range entries)
+  for (const m of searchText.matchAll(/Set(?:it)?\s+(\d+)\s*:\s*(\d+)\s+reps?/gi)) {
+    const idx = parseInt(m[1]) - 1, reps = parseInt(m[2]);
+    if (idx >= 0 && idx < repsPerSet.length && reps >= 1 && reps <= 30 && repsPerSet[idx] === null)
+      { repsPerSet[idx] = reps; anySet = true; }
+  }
+  if (anySet && repsPerSet.every(r => r !== null)) {
+    const result = {};
+    repsPerSet.forEach((reps, i) => {
+      if (result[reps] === undefined || nums[i] > result[reps]) result[reps] = nums[i];
+    });
+    return result;
+  }
+
+  // PATH 3 – single "N reps @X%" → all sets same rep count
+  const sm = searchText.match(/\b(\d{1,2})\s+reps?\s*@/i);
+  if (sm) {
+    const reps = parseInt(sm[1]);
+    if (reps >= 1 && reps <= 30) return { [reps]: Math.max(...nums) };
+  }
+
+  return null;
+}
+
+// Keep the better result; different types → keep first
+function keepBetter(a, b) {
+  if (!a) return b;
+  if (a.type !== b.type) return a;
+  if (a.type === 'strength') return b.kg       > a.kg       ? b : a;
+  if (a.type === 'time')     return b.totalSec < a.totalSec ? b : a;
+  if (a.type === 'reps')     return b.reps     > a.reps     ? b : a;
+  if (a.type === 'meters')   return b.meters   > a.meters   ? b : a;
+  return a;
+}
+
+// Convert parsed result to Wodbook record schema
+function toRecord(result, reps) {
+  const base = { date: result.date };
+  if (result.type === 'strength') {
+    return { ...base, kg: result.kg, reps, repMaxes: { [reps]: { kg: result.kg, date: result.date } } };
+  }
+  if (result.type === 'time')   return { ...base, totalSec: result.totalSec, timeStr: result.timeStr };
+  if (result.type === 'reps')   return { ...base, reps: result.reps };
+  if (result.type === 'meters') return { ...base, meters: result.meters };
+  if (result.type === 'other')  return { ...base, notes: result.notes };
+  return base;
+}
+
+// ── Build importData from raw rows ──
+function buildImportData(rows) {
+  // Strength: move → { type:'strength', repMaxes:{n:{kg,date}}, isCustom, category }
+  // Others:   move → { result, reps, isCustom, category }
+  const bestByMove = {};
+  let skipped = 0;
+
+  for (const row of rows) {
+    const rawName = String(row['Workout name']        || '').trim();
+    const rawDesc = String(row['Workout description'] || '').trim();
+    if (!rawName) { skipped++; continue; }
+
+    const parsed = parseRow(row);
+    if (!parsed) { skipped++; continue; }
+
+    const resolved = resolveName(rawName, rawDesc);
+    if (!resolved.move) { skipped++; continue; }
+
+    const { move, repsSource } = resolved;
+    const meta = { isCustom: resolved.isCustom, category: getCategory(resolved.move) };
+
+    if (parsed.type === 'strength') {
+      // If existing entry isn't a strength accumulator yet, initialise it
+      if (!bestByMove[move] || bestByMove[move].type !== 'strength')
+        bestByMove[move] = { type: 'strength', repMaxes: {}, ...meta };
+
+      // Try pairing multiple weights with a rep scheme from name/description
+      const paired = tryPairRepSets(parsed.nums, [repsSource, rawDesc].join('\n'));
+      if (paired) {
+        for (const [repCount, kg] of Object.entries(paired)) {
+          const slot = bestByMove[move].repMaxes[repCount];
+          if (!slot || kg > slot.kg)
+            bestByMove[move].repMaxes[repCount] = { kg, date: parsed.date };
+        }
+      } else {
+        const reps = extractReps(repsSource);
+        const slot = bestByMove[move].repMaxes[reps];
+        if (!slot || parsed.kg > slot.kg)
+          bestByMove[move].repMaxes[reps] = { kg: parsed.kg, date: parsed.date };
+      }
+    } else {
+      // Don't overwrite an already-collected strength entry with a different type
+      if (bestByMove[move]?.type === 'strength') continue;
+      const prev = bestByMove[move];
+      const better = keepBetter(prev?.result, parsed);
+      if (!prev || better === parsed)
+        bestByMove[move] = { result: parsed, reps: 1, ...meta };
+    }
+  }
+
+  importData = Object.entries(bestByMove).map(([move, entry]) => {
+    let result, reps, rec;
+
+    if (entry.type === 'strength') {
+      // Best = highest kg across all rep counts (for status comparison)
+      const slots = Object.entries(entry.repMaxes || {}).sort((a, b) => b[1].kg - a[1].kg);
+      if (!slots.length) return null;
+      const [bestN, bestSlot] = slots[0];
+      result = { type: 'strength', kg: bestSlot.kg, date: bestSlot.date };
+      reps   = Number(bestN);
+      rec    = { kg: bestSlot.kg, reps, date: bestSlot.date, repMaxes: entry.repMaxes };
+    } else {
+      result = entry.result;
+      reps   = entry.reps;
+      rec    = toRecord(result, reps);
+    }
+
+    const existing = existingPRs[move] || null;
+
+    let status = 'new';
+    if (existing) {
+      if (result.type === 'strength' && existing.kg) {
+        if      (result.kg > existing.kg) status = 'better';
+        else if (result.kg < existing.kg) status = 'worse';
+        else                              status = 'same';
+      } else if (result.type === 'time' && existing.totalSec) {
+        if      (result.totalSec < existing.totalSec) status = 'better';
+        else if (result.totalSec > existing.totalSec) status = 'worse';
+        else                                          status = 'same';
+      } else if (result.type === 'reps' && existing.reps && !existing.kg) {
+        if      (result.reps > existing.reps) status = 'better';
+        else if (result.reps < existing.reps) status = 'worse';
+        else                                  status = 'same';
+      } else if (result.type === 'meters' && existing.meters) {
+        if      (result.meters > existing.meters) status = 'better';
+        else if (result.meters < existing.meters) status = 'worse';
+        else                                      status = 'same';
+      } else {
+        status = 'new';
+      }
+    }
+
+    return { move, result, reps, rec, existing, isCustom: entry.isCustom, category: entry.category, status, include: false };
+  }).filter(Boolean).sort((a, b) => {
+    const order = { new: 0, better: 1, worse: 2 };
+    return (order[a.status] ?? 1) - (order[b.status] ?? 1) || a.move.localeCompare(b.move, 'fi');
+  });
+
+  renderStats(skipped);
+  renderTable();
+  hide('step-file');
+  show('step-review');
+}
+
+// ── Stats row ──
+function renderStats(skipped) {
+  const counts = { new: 0, better: 0, same: 0, worse: 0, custom: 0, strength: 0, gymnastics: 0, benchmark: 0, other: 0 };
+  importData.forEach(r => {
+    counts[r.status] = (counts[r.status] || 0) + 1;
+    if (r.isCustom) counts.custom++;
+    counts[r.category] = (counts[r.category] || 0) + 1;
+  });
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat"><div class="stat-n">${importData.length}</div><div class="stat-l">Liikettä</div></div>
+    <div class="stat"><div class="stat-n">${counts.new}</div><div class="stat-l">Uusia</div></div>
+    <div class="stat"><div class="stat-n">${counts.better}</div><div class="stat-l">Parempia</div></div>
+    <div class="stat"><div class="stat-n" style="color:#aaa">${counts.same}</div><div class="stat-l">Samoja</div></div>
+    <div class="stat"><div class="stat-n dim">${counts.worse}</div><div class="stat-l">Huonompia</div></div>
+    <div class="stat"><div class="stat-n warn">${counts.custom}</div><div class="stat-l">Tunnistamattomat</div></div>
+    <div class="stat"><div class="stat-n dim">${skipped}</div><div class="stat-l">Ohitettu</div></div>
+    <div class="stat"><div class="stat-n" style="font-size:18px">${counts.strength}</div><div class="stat-l">🏋️ Voima</div></div>
+    <div class="stat"><div class="stat-n" style="font-size:18px">${counts.gymnastics}</div><div class="stat-l">🤸 Gymnastics</div></div>
+    <div class="stat"><div class="stat-n" style="font-size:18px">${counts.benchmark}</div><div class="stat-l">⏱ Benchmark</div></div>
+    <div class="stat"><div class="stat-n dim" style="font-size:18px">${counts.other}</div><div class="stat-l">📋 Muut</div></div>
+  `;
+}
+
+// ── Preview table ──
+const TYPE_LABEL = { strength: 'Voima', time: 'Aika', reps: 'Toistot', meters: 'Metrit', other: 'Muu' };
+
+function repMaxesStr(repMaxes) {
+  return Object.entries(repMaxes)
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([n, { kg }]) => `${n}RM: ${kg} kg`)
+    .join(' · ');
+}
+
+function resultStr(r, reps, rec) {
+  if (!r) return '–';
+  if (r.type === 'strength') {
+    if (rec?.repMaxes && Object.keys(rec.repMaxes).length > 0)
+      return repMaxesStr(rec.repMaxes);
+    return `${r.kg} kg × ${reps || 1}`;
+  }
+  if (r.type === 'time')     return r.timeStr;
+  if (r.type === 'reps')     return `${r.reps} toistoa`;
+  if (r.type === 'meters')   return `${r.meters} m`;
+  if (r.type === 'other')    return r.notes || '–';
+  return '–';
+}
+
+function existingStr(pr) {
+  if (!pr) return '–';
+  if (pr.repMaxes && Object.keys(pr.repMaxes).length > 0) return repMaxesStr(pr.repMaxes);
+  if (pr.kg)      return `${pr.kg} kg × ${pr.reps || 1}`;
+  if (pr.timeStr) return pr.timeStr;
+  if (pr.reps)    return `${pr.reps} toistoa`;
+  if (pr.meters)  return `${pr.meters} m`;
+  if (pr.notes)   return pr.notes;
+  return '–';
+}
+
+const CAT_LABEL = {
+  strength:   '🏋️ Voima',
+  gymnastics: '🤸 Gymnastics',
+  benchmark:  '⏱ Benchmark',
+  other:      '📋 Muut',
+};
+const CAT_COLOR = {
+  strength:   '#a3ff00',
+  gymnastics: '#5bc0ff',
+  benchmark:  '#ff9f40',
+  other:      '#888',
+};
+
+function renderTable() {
+  const filtered = importData.filter(r => {
+    if (currentFilter === 'all')           return true;
+    if (currentFilter === 'custom')        return r.isCustom;
+    if (currentFilter.startsWith('cat-'))  return r.category === currentFilter.slice(4);
+    return r.status === currentFilter;
+  });
+
+  document.getElementById('preview-body').innerHTML = filtered.map(item => {
+    const i = importData.indexOf(item);
+    const catColor = CAT_COLOR[item.category] || '#888';
+    return `
+    <tr class="${item.status === 'worse' ? 'row-worse' : ''}">
+      <td><input type="checkbox" data-idx="${i}" ${item.include ? 'checked' : ''} onchange="window.toggleRow(${i}, this.checked)"></td>
+      <td>
+        <div class="move-name">${esc(item.move)}</div>
+        ${item.isCustom ? '<div class="move-sub"><span class="badge b-custom">TUNNISTAMATON</span></div>' : ''}
+      </td>
+      <td style="font-size:11px;font-weight:700;color:${catColor};white-space:nowrap">${CAT_LABEL[item.category] || '📋 Muut'}</td>
+      <td style="color:#888">${TYPE_LABEL[item.result.type] || item.result.type}</td>
+      <td style="font-weight:700">${esc(resultStr(item.result, item.reps, item.rec))}</td>
+      <td style="color:#666;font-size:12px">${item.result.date}</td>
+      <td style="color:#666;font-size:12px">${esc(existingStr(item.existing))}</td>
+      <td>
+        ${item.status === 'new'      ? '<span class="badge b-new">UUSI</span>'         : ''}
+        ${item.status === 'better'  ? '<span class="badge b-better">PAREMPI</span>'   : ''}
+        ${item.status === 'same'    ? '<span class="badge b-same">SAMA</span>'        : ''}
+        ${item.status === 'worse'   ? '<span class="badge b-worse">HUONOMPI</span>'   : ''}
+        ${item.status === 'imported'? '<span class="badge b-imported">✓ TUOTU</span>' : ''}
+      </td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="8" style="text-align:center;padding:24px;color:#555">Ei näytettäviä rivejä</td></tr>`;
+
+  // Sync the header checkbox to reflect only the visible rows' state
+  const chkAll = document.getElementById('chk-all');
+  const allChecked  = filtered.length > 0 && filtered.every(r => r.include);
+  const someChecked = filtered.some(r => r.include);
+  chkAll.checked       = allChecked;
+  chkAll.indeterminate = !allChecked && someChecked;
+}
+
+// ── Filter buttons ──
+const ALL_FILTER_IDS = ['all','new','better','worse','custom',
+                        'cat-strength','cat-gymnastics','cat-benchmark','cat-other'];
+window.setFilter = filter => {
+  currentFilter = filter;
+  ALL_FILTER_IDS.forEach(f => {
+    document.getElementById('flt-' + f).classList.toggle('active', f === filter);
+  });
+  renderTable();
+};
+
+window.toggleRow = (i, val) => {
+  importData[i].include = val;
+};
+
+window.toggleAll = val => {
+  const filtered = importData.filter(r => {
+    if (currentFilter === 'all')          return true;
+    if (currentFilter === 'custom')       return r.isCustom;
+    if (currentFilter.startsWith('cat-')) return r.category === currentFilter.slice(4);
+    return r.status === currentFilter;
+  });
+  filtered.forEach(r => { r.include = val; });
+  renderTable(); // renderTable syncs chk-all state
+};
+
+window.backToFile = () => {
+  hide('step-review');
+  show('step-file');
+  document.getElementById('file-input').value = '';
+  document.getElementById('import-status').textContent = '';
+  document.getElementById('import-status').style.color = '#666';
+  document.getElementById('btn-import').disabled = false;
+  document.getElementById('btn-import').textContent = 'Tuo valitut';
+};
+
+// ── Merge with existing PRs ──
+function mergeRecord(existing, incoming) {
+  if (!existing) return incoming;
+
+  // Strength: merge repMaxes slot-by-slot, keep best kg per rep count
+  if (incoming.repMaxes) {
+    const merged   = { ...existing };
+    const mergedRM = { ...(existing.repMaxes || {}) };
+    for (const [r, rm] of Object.entries(incoming.repMaxes)) {
+      if (!mergedRM[r] || rm.kg > mergedRM[r].kg) mergedRM[r] = rm;
+    }
+    merged.repMaxes = mergedRM;
+    // Recompute legacy kg/reps from the best slot
+    const best = Object.entries(mergedRM).sort((a, b) => b[1].kg - a[1].kg)[0];
+    if (best) { merged.kg = best[1].kg; merged.reps = Number(best[0]); merged.date = best[1].date; }
+    return merged;
+  }
+  // Time: keep lowest totalSec
+  if (incoming.totalSec !== undefined) {
+    return (!existing.totalSec || incoming.totalSec < existing.totalSec)
+      ? { ...existing, ...incoming } : existing;
+  }
+  // Reps (AMRAP): keep highest
+  if (incoming.reps !== undefined && incoming.repMaxes === undefined) {
+    return (!existing.reps || incoming.reps > existing.reps)
+      ? { ...existing, ...incoming } : existing;
+  }
+  // Meters: keep highest
+  if (incoming.meters !== undefined) {
+    return (!existing.meters || incoming.meters > existing.meters)
+      ? { ...existing, ...incoming } : existing;
+  }
+  // Other: overwrite
+  if (incoming.notes !== undefined) return { ...existing, ...incoming };
+
+  return existing;
+}
+
+// ── Import ──
+window.doImport = async () => {
+  if (!currentUser) { alert('Ei kirjautunutta käyttäjää'); return; }
+
+  const overwrite = document.getElementById('chk-overwrite').checked;
+  const selected  = importData.filter(r => r.include);
+  if (!selected.length) {
+    document.getElementById('import-status').textContent = 'Ei valittuja rivejä';
+    return;
+  }
+
+  const btn    = document.getElementById('btn-import');
+  const status = document.getElementById('import-status');
+  btn.disabled = true;
+  btn.textContent = 'Tuodaan…';
+  status.textContent = '';
+  status.style.color = '#666';
+
+  try {
+    // Re-fetch current PRs right before write to avoid stale-data overwrite
+    const snap    = await getDoc(doc(db, 'users', currentUser.uid, 'personalRecords', 'records'));
+    const current = snap.exists() ? snap.data() : {};
+    // Strip internal metadata key before merging
+    const { _updated, ...currentPRs } = current;
+
+    const merged = { ...currentPRs };
+    let count = 0;
+
+    for (const item of selected) {
+      const existing = merged[item.move];
+      if (overwrite && existing) {
+        merged[item.move] = { ...mergeRecord(existing, item.rec), ...item.rec };
+      } else {
+        merged[item.move] = mergeRecord(existing, item.rec);
+      }
+      count++;
+    }
+
+    await setDoc(
+      doc(db, 'users', currentUser.uid, 'personalRecords', 'records'),
+      { ...merged, _updated: serverTimestamp() }
+    );
+
+    selected.forEach(item => { item.status = 'imported'; item.include = false; });
+    renderTable();
+    status.textContent = `✓ ${count} ennätystä tallennettu Wodbook-profiiliisi`;
+    status.style.color = '#a3ff00';
+    btn.textContent    = 'Tuotu!';
+  } catch (e) {
+    console.error(e);
+    status.textContent = 'Virhe: ' + (e.message || e.code || 'tuntematon');
+    status.style.color = '#ff6b6b';
+    btn.disabled = false;
+    btn.textContent = 'Yritä uudelleen';
+  }
+};
+
+// ── Helpers ──
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden');    }
+function esc(s)   { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Enter key submits login
+document.getElementById('inp-pw').addEventListener('keydown', e => {
+  if (e.key === 'Enter') window.doLogin();
+});
+</script>
+
+<div id="danger-zone" class="hidden" style="max-width:500px;margin:48px auto 0;background:rgba(255,68,68,.06);border:1px solid rgba(255,68,68,.2);border-radius:12px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px">
+  <div>
+    <div style="font-size:11px;font-weight:700;color:#ff4444;letter-spacing:.6px;margin-bottom:4px">VAARA-ALUE</div>
+    <div style="font-size:12px;color:#ff9999;line-height:1.5">Siirryt sivulle, jossa voit poistaa kaikki ennätykset Wodbook-profiilista pysyvästi. Poistoa ei voi peruuttaa.</div>
+  </div>
+  <a href="clear-prs.html" style="flex-shrink:0;background:#ff4444;border:none;border-radius:9px;padding:10px 18px;font-size:11px;font-weight:800;letter-spacing:.6px;color:#fff;text-decoration:none;white-space:nowrap">Siirry poistosivulle →</a>
+</div>
+</body>
+</html>

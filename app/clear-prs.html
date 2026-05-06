@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tyhjennä ennätykset – Wodbook</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #111; color: #fff; min-height: 100vh; padding: 24px 20px; max-width: 600px; margin: 0 auto; }
+h1 { font-size: 20px; font-weight: 800; color: #ff4444; letter-spacing: 1px; margin-bottom: 2px; }
+.subtitle { font-size: 13px; color: #666; margin-bottom: 28px; }
+.card { background: #1a1a1a; border: 1px solid #252525; border-radius: 14px; padding: 22px; margin-bottom: 16px; }
+label { font-size: 10px; font-weight: 700; color: #666; display: block; margin-bottom: 5px; letter-spacing: .6px; }
+input[type=email], input[type=password], input[type=text] {
+  width: 100%; background: #242424; border: 1px solid #2e2e2e;
+  border-radius: 9px; padding: 11px 13px; color: #fff; font-size: 15px;
+  outline: none; transition: border-color .15s;
+}
+input:focus { border-color: #ff4444; }
+.btn {
+  background: #ff4444; border: none; border-radius: 9px; padding: 11px 22px;
+  font-size: 12px; font-weight: 800; letter-spacing: .6px; color: #fff;
+  cursor: pointer; transition: opacity .15s; width: 100%;
+}
+.btn:hover { opacity: .85; }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.btn-ghost {
+  background: transparent; border: 1px solid #2e2e2e; color: #aaa;
+  border-radius: 9px; padding: 11px 22px; font-size: 12px; font-weight: 700;
+  letter-spacing: .6px; cursor: pointer; width: 100%;
+}
+.btn-ghost:hover { border-color: #555; color: #fff; }
+.err  { color: #ff6b6b; font-size: 12px; margin-top: 8px; }
+.ok   { color: #a3ff00; font-size: 13px; margin-top: 8px; }
+.hidden { display: none !important; }
+
+.user-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #1a1a1a; border: 1px solid #252525; border-radius: 20px;
+  padding: 6px 14px; font-size: 12px; color: #888; margin-bottom: 18px;
+}
+.user-pill .dot { width: 8px; height: 8px; background: #a3ff00; border-radius: 50%; flex-shrink: 0; }
+
+.pr-count { font-size: 48px; font-weight: 800; color: #ff4444; line-height: 1; }
+.pr-label { font-size: 12px; color: #666; margin-top: 4px; }
+
+.pr-list {
+  max-height: 260px; overflow-y: auto; margin-top: 14px;
+  background: #141414; border: 1px solid #222; border-radius: 8px; padding: 10px 14px;
+}
+.pr-list div { font-size: 12px; color: #777; padding: 3px 0; border-bottom: 1px solid #1e1e1e; }
+.pr-list div:last-child { border-bottom: none; }
+
+.warn-box {
+  background: rgba(255,68,68,.07); border: 1px solid rgba(255,68,68,.2);
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+  font-size: 13px; color: #ff9999; line-height: 1.6;
+}
+</style>
+</head>
+<body>
+
+<h1>TYHJENNÄ ENNÄTYKSET</h1>
+<p class="subtitle">Poistaa kaikki henkilökohtaiset ennätykset Wodbook-profiilista pysyvästi</p>
+
+<div id="auth-loading" style="color:#444;font-size:13px;padding:12px 0">Ladataan…</div>
+
+<div id="user-bar" class="hidden" style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+  <div class="user-pill" style="margin-bottom:0"><span class="dot"></span><span id="user-email-label"></span></div>
+  <button class="btn-ghost" style="width:auto;padding:6px 14px;font-size:11px" onclick="window.doLogout()">Kirjaudu ulos</button>
+</div>
+
+<!-- Step 1: Login -->
+<div class="card hidden" id="step-login">
+  <div style="font-size:11px;font-weight:700;color:#ff4444;letter-spacing:.6px;margin-bottom:16px">KIRJAUDU SISÄÄN</div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div>
+      <label>SÄHKÖPOSTI</label>
+      <input type="email" id="inp-email" placeholder="sinun@email.fi" autocomplete="email">
+    </div>
+    <div>
+      <label>SALASANA</label>
+      <input type="password" id="inp-pw" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn" id="btn-login" onclick="doLogin()">Kirjaudu sisään</button>
+    <div class="err hidden" id="login-err"></div>
+  </div>
+</div>
+
+<!-- Step 2: Confirm delete -->
+<div class="hidden" id="step-confirm">
+  <!-- Current PR count + list -->
+  <div class="card" id="pr-summary">
+    <div class="pr-count" id="pr-count">…</div>
+    <div class="pr-label">henkilökohtaista ennätystä</div>
+    <div class="pr-list" id="pr-list"></div>
+  </div>
+
+  <div class="warn-box">
+    ⚠️ Tämä poistaa kaikki ennätykset pysyvästi. Toimintoa ei voi peruuttaa.<br>
+    Voit tuoda ne takaisin <a href="index.html" style="color:#ff9999">import-työkalulla</a>.
+  </div>
+
+  <div class="card">
+    <div style="font-size:11px;font-weight:700;color:#ff4444;letter-spacing:.6px;margin-bottom:12px">VAHVISTA POISTO</div>
+    <div>
+      <label>Kirjoita <strong style="color:#fff;letter-spacing:.5px">POISTA</strong> vahvistaaksesi</label>
+      <input type="text" id="inp-confirm" placeholder="POISTA" oninput="checkConfirm()" autocomplete="off">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+      <button class="btn" id="btn-delete" onclick="doDelete()" disabled>Poista kaikki ennätykset</button>
+    </div>
+    <div class="err hidden" id="delete-err"></div>
+    <div class="ok  hidden" id="delete-ok">✓ Kaikki ennätykset poistettu.</div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp }
+  from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import { initializeFirestore, persistentLocalCache, doc, getDoc, deleteDoc }
+  from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+
+const app = initializeApp({
+  apiKey:            'AIzaSyC7NAGjrPUG8fjxvGI0EjLSUO5_tNfN-WQ',
+  authDomain:        'wodbook-4a6ac.firebaseapp.com',
+  projectId:         'wodbook-4a6ac',
+  storageBucket:     'wodbook-4a6ac.firebasestorage.app',
+  messagingSenderId: '48961069729',
+  appId:             '1:48961069729:web:38de4d2b49edc68ee186e0',
+});
+const db   = initializeFirestore(app, { localCache: persistentLocalCache() });
+const auth = getAuth(app);
+
+let currentUser = null;
+
+// ── Auth ──
+onAuthStateChanged(auth, async fbUser => {
+  hide('auth-loading');
+  if (fbUser) {
+    currentUser = fbUser;
+    hide('step-login');
+    show('user-bar');
+    document.getElementById('user-email-label').textContent = fbUser.email;
+    await loadPRs();
+    show('step-confirm');
+  } else {
+    currentUser = null;
+    show('step-login');
+    hide('step-confirm');
+    hide('user-bar');
+  }
+});
+
+window.doLogin = async () => {
+  const email = document.getElementById('inp-email').value.trim();
+  const pw    = document.getElementById('inp-pw').value;
+  const btn   = document.getElementById('btn-login');
+  const err   = document.getElementById('login-err');
+  hide('login-err');
+  btn.disabled = true;
+  btn.textContent = 'Kirjaudutaan…';
+  try {
+    await signInWithEmailAndPassword(auth, email, pw);
+  } catch (e) {
+    const MSGS = {
+      'auth/user-not-found':     'Käyttäjää ei löydy',
+      'auth/wrong-password':     'Väärä salasana',
+      'auth/invalid-credential': 'Väärä sähköposti tai salasana',
+      'auth/invalid-email':      'Tarkista sähköpostiosoite',
+      'auth/too-many-requests':  'Liikaa kirjautumisyrityksiä — odota hetki',
+    };
+    err.textContent = MSGS[e.code] || e.message;
+    show('login-err');
+    btn.disabled = false;
+    btn.textContent = 'Kirjaudu sisään';
+  }
+};
+
+window.doLogout = () => signOut(auth);
+
+// ── Load and display current PRs ──
+async function loadPRs() {
+  try {
+    const snap = await getDoc(doc(db, 'users', currentUser.uid, 'personalRecords', 'records'));
+    if (!snap.exists()) {
+      document.getElementById('pr-count').textContent = '0';
+      document.getElementById('pr-list').innerHTML = '<div style="color:#555">Ei ennätyksiä</div>';
+      return;
+    }
+    const data = snap.data();
+    const moves = Object.keys(data).filter(k => k !== '_updated').sort((a, b) => a.localeCompare(b, 'fi'));
+    document.getElementById('pr-count').textContent = moves.length;
+    document.getElementById('pr-list').innerHTML = moves.map(m => {
+      const pr = data[m];
+      let val = '';
+      if (pr.kg)      val = `${pr.kg} kg`;
+      else if (pr.timeStr) val = pr.timeStr;
+      else if (pr.reps)    val = `${pr.reps} toistoa`;
+      else if (pr.meters)  val = `${pr.meters} m`;
+      else if (pr.notes)   val = pr.notes;
+      return `<div>${esc(m)}${val ? ' — ' + esc(val) : ''}</div>`;
+    }).join('') || '<div style="color:#555">Ei ennätyksiä</div>';
+  } catch (e) {
+    document.getElementById('pr-count').textContent = '?';
+    document.getElementById('pr-list').innerHTML = `<div style="color:#ff6b6b">Lataus epäonnistui: ${e.code || e.message}</div>`;
+  }
+}
+
+// ── Confirm input gate ──
+window.checkConfirm = () => {
+  const val = document.getElementById('inp-confirm').value.trim();
+  document.getElementById('btn-delete').disabled = val !== 'POISTA';
+};
+
+// ── Delete ──
+window.doDelete = async () => {
+  if (!currentUser) return;
+  if (document.getElementById('inp-confirm').value.trim() !== 'POISTA') return;
+
+  const btn = document.getElementById('btn-delete');
+  hide('delete-err');
+  hide('delete-ok');
+  btn.disabled = true;
+  btn.textContent = 'Poistetaan…';
+
+  try {
+    await deleteDoc(doc(db, 'users', currentUser.uid, 'personalRecords', 'records'));
+    show('delete-ok');
+    document.getElementById('pr-count').textContent = '0';
+    document.getElementById('pr-list').innerHTML = '<div style="color:#555">Ei ennätyksiä</div>';
+    document.getElementById('inp-confirm').value = '';
+    btn.textContent = 'Poistettu';
+  } catch (e) {
+    document.getElementById('delete-err').textContent = 'Virhe: ' + (e.message || e.code);
+    show('delete-err');
+    btn.disabled = false;
+    btn.textContent = 'Poista kaikki ennätykset';
+  }
+};
+
+// ── Helpers ──
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden');    }
+function esc(s)   { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+document.getElementById('inp-pw').addEventListener('keydown', e => {
+  if (e.key === 'Enter') window.doLogin();
+});
+</script>
+</body>
+</html>

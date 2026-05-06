@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Host App Folder",
+      "type": "shell",
+      "command": "python3",
+      "args": ["-m", "http.server", "8888"],
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}
