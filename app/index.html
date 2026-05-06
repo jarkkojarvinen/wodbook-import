@@ -94,6 +94,21 @@ tr.row-worse td { opacity: .55; }
 }
 .user-pill .dot { width: 8px; height: 8px; background: #a3ff00; border-radius: 50%; flex-shrink: 0; }
 
+.guide-callout {
+  background: #121212; border: 1px solid #2e2e2e; border-radius: 14px; padding: 16px; margin-bottom: 18px;
+}
+.guide-callout h2 {
+  margin: 0 0 12px; font-size: 12px; font-weight: 800; letter-spacing: .6px; color: #a3ff00;
+}
+.guide-callout p { font-size: 13px; color: #ccc; line-height: 1.6; margin: 0 0 14px; }
+.guide-callout ol { margin: 0 0 12px 18px; color: #ccc; font-size: 13px; }
+.guide-callout li { margin-bottom: 10px; }
+.guide-layout { display: flex; gap: 20px; align-items: flex-start; }
+.guide-text { flex: 1; min-width: 0; }
+.guide-image { flex: 0 0 53%; border: 1px solid #252525; border-radius: 12px; overflow: hidden; background: #0f0f0f; position: relative; }
+.guide-image img { display: block; width: 100%; height: auto; }
+@media (max-width: 600px) { .guide-layout { flex-direction: column; } .guide-image { flex: none; width: 100%; } }
+
 .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
 .filter-btn { background: #1a1a1a; border: 1px solid #252525; border-radius: 6px; padding: 5px 12px; font-size: 11px; color: #888; cursor: pointer; }
 .filter-btn.active { background: rgba(163,255,0,.1); border-color: rgba(163,255,0,.3); color: #a3ff00; }
@@ -133,6 +148,23 @@ tr.row-worse td { opacity: .55; }
 <!-- Step 2: File pick -->
 <div class="hidden" id="step-file">
   <div class="card">
+    <div class="guide-callout">
+      <div class="guide-layout">
+        <div class="guide-text">
+          <h2>LATAA JOURNAL-TIEDOSTO WODCONNECTISTA</h2>
+          <p>Kirjaudu WodConnectiin, lataa Excel-muotoinen tulostiedosto ja tuo se tähän sovellukseen.</p>
+          <ol>
+            <li>Avaa <a href="https://www.wodconnect.com/profile/edit#profile_info" target="_blank" rel="noopener noreferrer" style="color:#a3ff00">wodconnect.com</a> ja kirjaudu sisään.</li>
+            <li>Siirry <strong>Profile</strong> → <strong>Profile info</strong>.</li>
+            <li>Valitse <strong>Download all results in Excel format</strong>.</li>
+            <li>Tallenna tiedosto ja tuo se tähän työkalun avulla.</li>
+          </ol>
+        </div>
+        <div class="guide-image">
+          <img src="wodconnect-export.png" alt="WodConnect export ohje">
+        </div>
+      </div>
+    </div>
     <div style="font-size:11px;font-weight:700;color:#a3ff00;letter-spacing:.6px;margin-bottom:16px">VALITSE TIEDOSTO</div>
     <label class="drop-zone" for="file-input" id="drop-zone">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.5">
@@ -150,6 +182,10 @@ tr.row-worse td { opacity: .55; }
 <!-- Step 3: Review -->
 <div class="hidden" id="step-review">
   <div class="stats" id="stats-row"></div>
+
+  <div class="guide-callout" style="margin-bottom:18px">
+    <p style="margin:0">Alla näet tiedostosta löytyneet ennätykset. Valitse riveistä ne, jotka haluat tuoda Wodbook-palveluun — oletuksena mikään ei ole valittuna. Voit suodattaa näkymää tilan tai kategorian mukaan. Kun olet valmis, paina <strong style="color:#a3ff00">Tuo valitut</strong>.</p>
+  </div>
 
   <div class="filter-bar">
     <div style="font-size:11px;font-weight:700;color:#a3ff00;letter-spacing:.6px;margin-right:4px">ESIKATSELU</div>
