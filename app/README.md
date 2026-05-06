@@ -4,18 +4,27 @@ A standalone browser tool for importing personal records from a WodConnect `jour
 
 No backend, no build step, no npm. One HTML file.
 
+> This tool is also hosted on GitHub Pages at:
+> `https://jarkkojarvinen.github.io/wodbook-import/`
+
 ---
 
 ## Usage
 
-### 1. Start a local server
+### 1. Open the app
+
+Option 1: Use the hosted version
+
+Open: **https://jarkkojarvinen.github.io/wodbook-import/**
+
+Option 2: Run locally from the `app/` folder
 
 ```bash
-# From the wodbook-poc root (or any parent of import-app/)
+cd app
 python3 -m http.server 8080
 ```
 
-Then open: **http://localhost:8080/import-app/**
+Then open: **http://localhost:8080/**
 
 > **Why localhost and not `file://`?**  
 > Firebase Authentication requires an authorized origin. `localhost` is whitelisted by default in Firebase; `file://` is not.
