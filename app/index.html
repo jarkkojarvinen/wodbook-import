@@ -114,6 +114,48 @@ tr.row-worse td { opacity: .55; }
 .filter-btn.active { background: rgba(163,255,0,.1); border-color: rgba(163,255,0,.3); color: #a3ff00; }
 
 #auth-loading { color: #444; font-size: 13px; padding: 12px 0; }
+.mobile-select-all { display: none; }
+
+@media (max-width: 640px) {
+  /* Filter bars: wrap normally but compact */
+  .filter-btn { padding: 8px 12px; font-size: 12px; }
+  .filter-label { width: 100%; margin-right: 0 !important; margin-bottom: 2px; }
+  .filter-overwrite { width: 100%; margin-left: 0 !important; margin-top: 4px; }
+
+  /* Table → card layout */
+  .table-wrap { border: none; overflow: visible; }
+  table, tbody { display: block; min-width: unset; }
+  thead { display: none; }
+
+  /* Mobile select-all row (replaces hidden thead) */
+  .mobile-select-all { display: flex; align-items: center; gap: 10px; padding: 0 0 12px; }
+  .mobile-select-all label { font-size: 12px; color: #888; white-space: nowrap; cursor: pointer; }
+
+  tbody tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "move check" "result result" "cat status";
+    background: #1a1a1a; border: 1px solid #252525; border-radius: 10px;
+    margin-bottom: 10px; padding: 12px 14px; gap: 6px 8px;
+  }
+  tbody tr.row-worse { opacity: .55; }
+  tbody td { padding: 0; border: none; }
+  tbody td:nth-child(1) { grid-area: check; display: flex; align-items: center; justify-content: flex-end; }
+  tbody td:nth-child(2) { grid-area: move; }
+  tbody td:nth-child(3) { grid-area: cat; }
+  tbody td:nth-child(4) { display: none; }
+  tbody td:nth-child(5) { grid-area: result; font-weight: 700; font-size: 15px; color: #fff; }
+  tbody td:nth-child(6) { display: none; }
+  tbody td:nth-child(7) { display: none; }
+  tbody td:nth-child(8) { grid-area: status; display: flex; align-items: flex-end; justify-content: flex-end; }
+
+  /* Larger touch targets */
+  input[type=checkbox] { width: 20px; height: 20px; cursor: pointer; }
+
+  /* Full-width action buttons */
+  .actions { flex-direction: column; }
+  .actions .btn { width: 100%; text-align: center; padding: 14px; font-size: 13px; }
+}
 </style>
 </head>
 <body>
@@ -192,22 +234,27 @@ tr.row-worse td { opacity: .55; }
   </div>
 
   <div class="filter-bar">
-    <div style="font-size:11px;font-weight:700;color:#a3ff00;letter-spacing:.6px;margin-right:4px">ESIKATSELU</div>
+    <div class="filter-label" style="font-size:11px;font-weight:700;color:#a3ff00;letter-spacing:.6px;margin-right:4px">ESIKATSELU</div>
     <button class="filter-btn active" id="flt-all"    onclick="setFilter('all')">Kaikki</button>
     <button class="filter-btn"        id="flt-new"    onclick="setFilter('new')">Uudet</button>
     <button class="filter-btn"        id="flt-better" onclick="setFilter('better')">Paremmat</button>
     <button class="filter-btn"        id="flt-worse"  onclick="setFilter('worse')">Huonommat</button>
     <button class="filter-btn"        id="flt-custom" onclick="setFilter('custom')">Tunnistamattomat</button>
-    <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:#888;cursor:pointer;letter-spacing:0;font-weight:400">
+    <label class="filter-overwrite" style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:#888;cursor:pointer;letter-spacing:0;font-weight:400">
       <input type="checkbox" id="chk-overwrite"> Korvaa kaikki (myös huonommat)
     </label>
   </div>
   <div class="filter-bar" style="margin-top:-6px">
-    <div style="font-size:10px;font-weight:700;color:#555;letter-spacing:.6px;margin-right:4px">KATEGORIA</div>
+    <div class="filter-label" style="font-size:10px;font-weight:700;color:#555;letter-spacing:.6px;margin-right:4px">KATEGORIA</div>
     <button class="filter-btn" id="flt-cat-strength"   onclick="setFilter('cat-strength')">🏋️ Voima</button>
     <button class="filter-btn" id="flt-cat-gymnastics" onclick="setFilter('cat-gymnastics')">🤸 Gymnastics</button>
     <button class="filter-btn" id="flt-cat-benchmark"  onclick="setFilter('cat-benchmark')">⏱ Benchmark</button>
     <button class="filter-btn" id="flt-cat-other"      onclick="setFilter('cat-other')">📋 Muut</button>
+  </div>
+
+  <div class="mobile-select-all">
+    <input type="checkbox" id="chk-all-mobile" onchange="window.toggleAll(this.checked)">
+    <label for="chk-all-mobile">Valitse kaikki</label>
   </div>
 
   <div class="table-wrap">
@@ -915,10 +962,12 @@ function renderTable() {
 
   // Sync the header checkbox to reflect only the visible rows' state
   const chkAll = document.getElementById('chk-all');
+  const chkAllMobile = document.getElementById('chk-all-mobile');
   const allChecked  = filtered.length > 0 && filtered.every(r => r.include);
   const someChecked = filtered.some(r => r.include);
   chkAll.checked       = allChecked;
   chkAll.indeterminate = !allChecked && someChecked;
+  if (chkAllMobile) { chkAllMobile.checked = allChecked; chkAllMobile.indeterminate = !allChecked && someChecked; }
 }
 
 // ── Filter buttons ──
