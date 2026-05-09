@@ -1,3 +1,4 @@
 *.xlsx
 .playwright-mcp
 plan/
+.claude/settings.local.json

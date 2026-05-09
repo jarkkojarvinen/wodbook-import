@@ -20,11 +20,10 @@ Open: **https://jarkkojarvinen.github.io/wodbook-import/**
 Option 2: Run locally from the `app/` folder
 
 ```bash
-cd app
-python3 -m http.server 8080
+python3 -m http.server 8081 --directory app
 ```
 
-Then open: **http://localhost:8080/**
+Then open: **http://localhost:8081/**
 
 > **Why localhost and not `file://`?**  
 > Firebase Authentication requires an authorized origin. `localhost` is whitelisted by default in Firebase; `file://` is not.
@@ -33,11 +32,13 @@ Then open: **http://localhost:8080/**
 
 Use your normal Wodbook credentials (email + password). The tool connects to the same Firebase project as wodbook.fi — your data, your account.
 
+Your credentials are sent directly to Wodbook/Firebase only — they are not stored in this tool and do not go to any third party.
+
 ### 3. Pick your file
 
 Drag `journal.xlsx` onto the drop zone, or click to browse. The file is parsed entirely in the browser — nothing is uploaded anywhere.
 
-> To export from WodConnect: **Profile → Export → Journal (Excel)**
+> To export from WodConnect: open [wodconnect.com/profile/edit](https://www.wodconnect.com/profile/edit#profile_info), go to **Profile info**, and click **Download all results in Excel format**. The app shows a screenshot guide on this step.
 
 ### 4. Review
 
@@ -45,16 +46,18 @@ Before anything is written you see a table of every importable movement:
 
 | Column | Description |
 |---|---|
-| Liike | Normalised movement name. "OMA NIMI" badge = not a standard Wodbook move |
+| Liike | Normalised movement name. "TUNNISTAMATON" badge = not a standard Wodbook move |
 | Tyyppi | Voima / Aika / Toistot / Metrit / Muu |
 | Paras tulos | Best result found across all your WodConnect entries for that movement |
 | Pvm | Date of that best result |
 | Nykyinen Wodbook PR | What you already have in Wodbook (fetched at login) |
-| Tila | UUSI / PAREMPI / HUONOMPI |
+| Tila | UUSI / PAREMPI / SAMA / HUONOMPI |
 
-**Filter buttons** let you view subsets: Kaikki / Uudet / Paremmat / Huonommat / Omat nimet.
+**Filter buttons** let you view subsets: Kaikki / Uudet / Paremmat / Huonommat / Tunnistamattomat.
 
-**Per-row checkboxes** — include or exclude individual movements. "Huonommat" rows are unchecked by default.
+**Category filter** — Voima / Gymnastics / Benchmark / Muut.
+
+**Per-row checkboxes** — nothing is checked by default (opt-in). Select the rows you want to import.
 
 **Korvaa kaikki** checkbox — forces overwrite even for results that are worse than your existing PR.
 
@@ -176,12 +179,13 @@ When the workout name strips down to something too generic (e.g. `"Squat Progres
 
 ### clear-prs.html — Remove all personal records
 
-Opens at `http://localhost:8080/import-app/clear-prs.html`.
+Opens at `http://localhost:8081/clear-prs.html` (or the GitHub Pages URL).
 
 - Logs in with your Wodbook credentials
 - Shows the current PR count and a full list before doing anything
 - Requires typing `POISTA` to confirm — prevents accidental deletion
 - Calls `deleteDoc` on `users/{uid}/personalRecords/records`, the same path the Wodbook app itself uses for account deletion
+- Includes a link back to the import tool
 
 Useful for a clean slate before re-importing from WodConnect.
 
@@ -191,7 +195,11 @@ Useful for a clean slate before re-importing from WodConnect.
 
 ### Making changes
 
-Edit `index.html` directly — it is the entire app. Refresh the browser. No build step.
+Edit `index.html` directly — it is the entire app. Refresh the browser. No build step. Push to `main` to deploy automatically to GitHub Pages.
+
+### Mobile support
+
+The review table renders as cards on screens ≤ 640 px: each movement is a card with name, result, category and status badge. Filter buttons wrap to multiple rows. Action buttons are full-width. Checkboxes are enlarged for touch.
 
 ### Keeping MOVEMENTS in sync with wodbook.fi
 
@@ -237,6 +245,6 @@ npx http-server import-app/ -p 8080
 | Login fails with "auth/invalid-credential" | Wrong email or password | Use the same credentials as wodbook.fi |
 | Login works but PRs don't appear in Wodbook | Email not verified in Firebase | Verify your email via Wodbook first |
 | "Sarake 'Workout name' puuttuu" | Wrong file format | Export from WodConnect as Excel, not PDF/CSV manually |
-| Movement shows "OMA NIMI" badge | Name not in Wodbook's known list | It will be saved as a custom PR — that's fine |
+| Movement shows "TUNNISTAMATON" badge | Name not in Wodbook's known list | It will be saved as a custom PR — that's fine |
 | Date appears one day off | Timezone edge case | Check that `Happened at` column has dates, not just times |
 | Firestore permission denied | Logged in with wrong account | Log out and log in with the correct Wodbook account |

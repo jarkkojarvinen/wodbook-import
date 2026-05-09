@@ -11,28 +11,26 @@ Standalone browser tool that imports personal records (PRs) from a WodConnect `j
 ```
 wodbook-import-app/
 ├── CLAUDE.md              ← this file
-├── CONTRIBUTING.md        ← contributor workflow summary
-├── journal.xlsx           ← test file (Jarkko's WodConnect export)
-├── journal_Mira.xlsx      ← second test file (Mira's export)
 ├── .vscode/tasks.json     ← VS Code task: python3 -m http.server 8081
-├── app/
-│   ├── index.html         ← THE ENTIRE IMPORT TOOL (HTML + CSS + JS)
-│   ├── clear-prs.html     ← danger tool: deletes all PRs from Firestore
-│   └── README.md          ← end-user + developer docs (keep in sync)
-└── plan/
-    ├── PLAN.md            ← original implementation plan (field mappings, logic)
-    ├── wodbook_live.html  ← snapshot of the live wodbook.fi index.html
-    ├── auth_js.txt        ← snapshot of the live wodbook.fi auth.js
-    └── import.html        ← earlier prototype (superseded by app/index.html)
+├── .github/workflows/
+│   └── pages.yml          ← GitHub Actions: auto-deploy app/ to GitHub Pages
+└── app/
+    ├── index.html              ← THE ENTIRE IMPORT TOOL (HTML + CSS + JS)
+    ├── clear-prs.html          ← danger tool: deletes all PRs from Firestore
+    ├── favicon.svg             ← app icon
+    ├── wodconnect-export.png   ← guide screenshot shown in file-pick step
+    └── README.md               ← end-user + developer docs (keep in sync)
 ```
+
+Test `.xlsx` files and `plan/` snapshots are kept locally but not committed to version control.
 
 ---
 
 ## Before making any change
 
-1. **Check wodbook.fi source parity.** The MOVEMENTS list and Firebase SDK version in `app/index.html` must match the live site. The live site source is snapshotted in `plan/wodbook_live.html` and `plan/auth_js.txt`. If those files seem stale, download fresh copies from `https://wodbook.fi/index.html` (view-source) before editing.
+1. **Check wodbook.fi source parity.** The MOVEMENTS list and Firebase SDK version in `app/index.html` must match the live site. Fetch a fresh copy of `https://wodbook.fi/index.html` (view-source) and compare before editing. Last verified: **2026-05-09** — SDK 10.14.1, schema unchanged, no new PR categories.
 
-2. **Test with both xlsx files.** `journal.xlsx` (Jarkko) and `journal_Mira.xlsx` (Mira) are in the root. Both must parse without errors and show sensible stats.
+2. **Test with xlsx files.** Local test exports (`journal.xlsx`, `journal_2.xlsx`) are in the root but not committed. Both must parse without errors and show sensible stats.
 
 3. **Always update `app/README.md`** after any change to `app/index.html`. The README is the end-user manual — keep usage, feature list, and the "how it works" data-flow diagram accurate.
 
@@ -79,7 +77,7 @@ Hardcoded near the top of the `<script type="module">` block. Three categories:
 
 - `strength` — Back Squat, Front Squat, Deadlift, Clean & Jerk, etc. (23 moves)
 - `gymnastics` — Pull-up (max), HSPU (max), etc. (8 moves)
-- `benchmark` — Fran, Helen, Murph, Cindy (kierrokset), etc. (18 moves)
+- `benchmark` — Fran, Helen, Murph, Cindy (kierrokset), etc. (19 moves — includes Ellen, Kelly, Karabel as intentional extras not in live wodbook.fi)
 
 `ALL_KNOWN_MOVES` is sorted **longest-first** so prefix matching prefers the most-specific move (e.g. "Hang Power Clean" beats "Power Clean" beats "Clean").
 
@@ -129,24 +127,32 @@ Re-fetches current Firestore PRs just before writing (avoids stale-data overwrit
 
 ## UI flow
 
-1. **Login** — email + password (same credentials as wodbook.fi)
-2. **File picker** — drag-and-drop or click; `.xlsx` and `.csv` accepted; parsed in-browser
-3. **Review table** — filter by status (Uudet / Paremmat / Huonommat / Omat nimet) and by category (Voima / Gymnastics / Benchmark / Muut); per-row checkboxes; "Korvaa kaikki" override
-4. **Import** — writes only checked rows; status message shows count
+1. **Login** — email + password (same credentials as wodbook.fi). Privacy note shown: credentials go only to Firebase/Wodbook, not stored locally.
+2. **File picker** — guide image (wodconnect-export.png) shows where to find the download button in WodConnect. Drag-and-drop or click; `.xlsx` and `.csv` accepted; parsed in-browser.
+3. **Review table** — opt-in selection (nothing checked by default). Filter by status (Uudet / Paremmat / Huonommat / Tunnistamattomat) and by category (Voima / Gymnastics / Benchmark / Muut); per-row checkboxes; "Korvaa kaikki" override. Page scrolls to top automatically when review loads.
+4. **Import** — writes only checked rows; status message shows count. Imported rows get a ✓ TUOTU badge.
 
 ---
 
 ## clear-prs.html
 
-A separate danger tool at `http://localhost:8081/clear-prs.html`. Deletes `users/{uid}/personalRecords/records` entirely after requiring the user to type `POISTA`. Useful for a clean slate before re-importing.
+A separate danger tool at `http://localhost:8081/clear-prs.html` (or the GitHub Pages URL). Deletes `users/{uid}/personalRecords/records` entirely after requiring the user to type `POISTA`. Includes a link back to the import tool. Useful for a clean slate before re-importing.
+
+## Deployment
+
+The app is deployed to GitHub Pages automatically via `.github/workflows/pages.yml` on every push to `main`. Live URL: **https://jarkkojarvinen.github.io/wodbook-import/**
+
+For GitHub Pages to work, two things must be configured in the Firebase project (`wodbook-4a6ac`):
+- **Firebase Auth authorized domains**: add `jarkkojarvinen.github.io`
+- **Google Cloud API key HTTP referrer restriction**: add `https://jarkkojarvinen.github.io/*` to the API key used by the app
 
 ---
 
 ## Workflow for code changes
 
-1. Read the current `plan/wodbook_live.html` to verify MOVEMENTS list parity.
+1. Fetch `https://wodbook.fi/index.html` (view-source) to verify MOVEMENTS list parity.
 2. Edit `app/index.html`.
-3. Test by opening `http://localhost:8081/` and loading both test xlsx files. Check stats (movement count, skipped count) are reasonable.
+3. Test by opening `http://localhost:8081/` and loading local test xlsx files. Check stats (movement count, skipped count) are reasonable.
 4. Update `app/README.md` to reflect any user-visible changes.
 5. Update this `CLAUDE.md` if the architecture or workflow changes.
 
